@@ -13,7 +13,8 @@ const getScreenshot = async (targetURL, type, quality, fullPage, selector = null
     }
 
     let clip
-    if (selector) {
+    if (selector) { 
+        await page.waitForSelector(selector, { visible: true })
         const rect = await page.evaluate(selector => {
             const element = document.querySelector(selector);
             if (!element)
