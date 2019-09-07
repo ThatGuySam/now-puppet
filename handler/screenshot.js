@@ -2,7 +2,7 @@ const { parse } = require('url');
 const { parseTarget, endWithCache, endWithError, getInt } = require('../lib/util')('screenshot');
 const chromium = require('../lib/chromium');
 
-const getScreenshot = async (targetURL, type, quality, fullPage) => {
+const getScreenshot = async (targetURL, type, quality, fullPage, selector = null) => {
     const { browser, page, err } = await chromium.visit(targetURL)
     if (err) {
         return { err }
@@ -12,7 +12,37 @@ const getScreenshot = async (targetURL, type, quality, fullPage) => {
         fullPage = true
     }
 
-    const file = await page.screenshot({ type,  quality, fullPage });
+    let clip
+    if (selector) {
+        const rect = await page.evaluate(selector => {
+            const element = document.querySelector(selector);
+            if (!element)
+            return null;
+            const {x, y, width, height} = element.getBoundingClientRect();
+            return {left: x, top: y, width, height, id: element.id};
+        }, selector);
+
+
+        clip = {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height
+        }
+    }
+
+    let screenshotOptions = {
+        type, 
+        quality
+    }
+
+    if (clip) {
+        screenshotOptions.clip = clip
+    } else {
+        screenshotOptions.fullPage = fullPage
+    }
+
+    const file = await page.screenshot(screenshotOptions);
     await browser.close();
     return { file };
 }
@@ -24,7 +54,7 @@ module.exports = async function (req, res) {
     }
 
     try {
-        let { type = 'png', quality, fullPage } = puppetQuery;
+        let { type = 'png', quality, fullPage, selector = null } = puppetQuery;
 
         quality = getInt(quality)
         if (quality) {
@@ -40,7 +70,7 @@ module.exports = async function (req, res) {
             type = 'jpeg'
         }
 
-        const { file, err: handlerErr } = await getScreenshot(target, type, quality, fullPage);
+        const { file, err: handlerErr } = await getScreenshot(target, type, quality, fullPage, selector);
         if (handlerErr) {
             return endWithError(res, handlerErr)
         }
