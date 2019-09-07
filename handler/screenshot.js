@@ -1,3 +1,5 @@
+process.env.TZ = 'America/Chicago'
+
 const { parse } = require('url');
 const { parseTarget, endWithCache, endWithError, getInt } = require('../lib/util')('screenshot');
 const chromium = require('../lib/chromium');
